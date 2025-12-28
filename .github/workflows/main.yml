@@ -7,12 +7,22 @@ on:
 
 jobs:
   start-vps:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 360
 
     steps:
       - name: ⬇️ Checkout
         uses: actions/checkout@v3
+
+      # 🧹 FREE UP 25–30GB DISK (same as TWRP builder)
+      - name: 🧹 Cleanup runner
+        uses: rokibhasansagar/slimhub_actions@main
+
+      # 💾 ADD 24GB SWAP (same as TWRP builder)
+      - name: 💾 Add 24GB swap
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 24
 
       - name: 📁 Create dirs
         run: mkdir -p links .backup
@@ -24,34 +34,4 @@ jobs:
             echo "📦 Restoring backup..."
             unzip ".backup/$name.zip" -d . || echo "⚠️ No backup to restore."
           fi
-
-      - name: 🔐 Start tmate session
-        run: |
-          echo "⚙️ Launching tmate..."
-          sudo apt update && sudo apt install -y tmate
-          tmate -S /tmp/tmate.sock new-session -d
-          tmate -S /tmp/tmate.sock wait tmate-ready
-          SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}')
-          echo "$SSH" > "links/${{ github.event.client_payload.vps_name || 'manual-vps' }}.txt"
-          echo "✅ SSH Ready: $SSH"
-          sleep 60
-
-      - name: 📦 Save backup
-        run: |
-          name="${{ github.event.client_payload.vps_name || 'manual-vps' }}"
-          zip -r ".backup/$name.zip" . -x ".git/*" ".github/*" ".backup/*" || true
-
-      - name: 📤 Push updates
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "🔁 Updated SSH + backup for ${{ github.event.client_payload.vps_name || 'manual-vps' }}"
-          file_pattern: 'links/*.txt .backup/*.zip'
-
-      - name: ⏳ Keep session alive
-        run: |
-          echo "⏳ Keeping session alive..."
-          while true; do
-            echo "$(date): keepalive"
-            sleep 30
-          done
           
